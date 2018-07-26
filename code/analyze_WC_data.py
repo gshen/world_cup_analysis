@@ -102,17 +102,31 @@ def calculate_age_and_zodiac(wc_year, dob_string):
     return str(age), zodiac_sign
 
 #############################################################
+# Handle the data quality problems in country names.        #
+#############################################################
+def clean_country_name(country_name):
+    if country_name.find('Ivoire') > -1:
+        # Co'te d'Ivoire is not parsed correctly due to non-English (French) character
+        return "Co'te d'Ivoire"
+    elif country_name.find('Iran') > -1:
+        # Iran can be coded as "IR Iran" in 2018
+        return "Iran"
+    else:
+        return country_name
+
+#############################################################
 # Parse the players data on each page for 2018 data         #
 #############################################################
 def parse_PDF_page(writer, page_i):
     # Remove the header row
     rows = page_i[page_i.find(HEIGHT_WEIGHT)+len(HEIGHT_WEIGHT):]
     country_name = re.search(COUNTRY_PATTERN, rows).group(0).strip()
+    cleaned_country_name = clean_country_name(country_name)
     while (re.search(country_name, rows) is not None):
         dob = re.search(DATE_PATTERN, rows).group(0).strip()
         height_weight = re.search(HEIGHT_WEIGHT_PATTERN, rows).group(0).strip()
         age, zodiac_sign = calculate_age_and_zodiac(2018, dob)
-        writer.writerow(['2018', country_name, dob, height_weight.split(' ')[0], age, zodiac_sign, height_weight.split(' ')[1]])
+        writer.writerow(['2018', cleaned_country_name, dob, height_weight.split(' ')[0], age, zodiac_sign, height_weight.split(' ')[1]])
         rows = rows[rows.find(height_weight)+len(height_weight):]
 
 #############################################################
@@ -137,12 +151,13 @@ def parse_txt_file(file_name):
                 else:
                     for idx, dob in enumerate(dobs):
                         age, zodiac_sign = calculate_age_and_zodiac(wc_year, dob)
-                        writer.writerow([wc_year, country_name, dob, heights[idx], age, zodiac_sign])
+                        writer.writerow([wc_year, cleaned_country_name, dob, heights[idx], age, zodiac_sign])
                 dobs = []
                 heights = []
             elif found_line_of_players:
                 if (line != ''):
                     country_name = line
+                    cleaned_country_name = clean_country_name(country_name)
                     found_line_of_players = False
             else:
                 if re.search(DATE_PATTERN, line) is not None: 
@@ -178,7 +193,7 @@ def parse_pdf(data_file):
 
 if __name__ == '__main__':
     try:
-        # Uncomment to process PDF files containing players data
+        ### Uncomment to process PDF files containing players data
         # if os.path.isfile(CSV_FILE_NAME):
         #     os.remove(CSV_FILE_NAME)
         # for pdf_file in glob.glob(sys.argv[1]):
